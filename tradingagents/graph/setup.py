@@ -6,10 +6,10 @@ from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
+from tradingagents.agents.managers.debate_arbiter import create_debate_arbiter
 from tradingagents.agents.utils.agent_states import AgentState
-
 from .conditional_logic import ConditionalLogic
-
+from tradingagents.agents.managers.risk_arbiter import create_risk_arbiter
 
 class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
@@ -40,15 +40,7 @@ class GraphSetup:
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
     ):
-        """Set up and compile the agent workflow graph.
-
-        Args:
-            selected_analysts (list): List of analyst types to include. Options are:
-                - "market": Market analyst
-                - "social": Social media analyst
-                - "news": News analyst
-                - "fundamentals": Fundamentals analyst
-        """
+        """Set up and compile the agent workflow graph."""
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
 
@@ -92,15 +84,23 @@ class GraphSetup:
         bear_researcher_node = create_bear_researcher(
             self.quick_thinking_llm, self.bear_memory
         )
+        debate_arbiter_node = create_debate_arbiter(
+            self.quick_thinking_llm, 
+            max_rounds=self.conditional_logic.max_debate_rounds
+        )
         research_manager_node = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
         )
         trader_node = create_trader(self.quick_thinking_llm, self.trader_memory)
 
         # Create risk analysis nodes
-        risky_analyst = create_risky_debator(self.quick_thinking_llm)
-        neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
-        safe_analyst = create_safe_debator(self.quick_thinking_llm)
+        risky_analyst_node = create_risky_debator(self.quick_thinking_llm)
+        neutral_analyst_node = create_neutral_debator(self.quick_thinking_llm)
+        safe_analyst_node = create_safe_debator(self.quick_thinking_llm)
+        risk_arbiter_node = create_risk_arbiter(
+            self.quick_thinking_llm,
+            max_rounds=self.conditional_logic.max_risk_discuss_rounds
+        )
         risk_manager_node = create_risk_manager(
             self.deep_thinking_llm, self.risk_manager_memory
         )
@@ -119,25 +119,25 @@ class GraphSetup:
         # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
+        workflow.add_node("Debate Arbiter", debate_arbiter_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
-        workflow.add_node("Risky Analyst", risky_analyst)
-        workflow.add_node("Neutral Analyst", neutral_analyst)
-        workflow.add_node("Safe Analyst", safe_analyst)
+        workflow.add_node("Risky Analyst", risky_analyst_node)
+        workflow.add_node("Neutral Analyst", neutral_analyst_node)
+        workflow.add_node("Safe Analyst", safe_analyst_node)
+        workflow.add_node("Risk Arbiter", risk_arbiter_node)
         workflow.add_node("Risk Judge", risk_manager_node)
 
-        # Define edges
-        # Start with the first analyst
+        # --- Define Edges ---
+
+        # 1. Analyst Chain
         first_analyst = selected_analysts[0]
         workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
-
-        # Connect analysts in sequence
         for i, analyst_type in enumerate(selected_analysts):
             current_analyst = f"{analyst_type.capitalize()} Analyst"
             current_tools = f"tools_{analyst_type}"
             current_clear = f"Msg Clear {analyst_type.capitalize()}"
 
-            # Add conditional edges for current analyst
             workflow.add_conditional_edges(
                 current_analyst,
                 getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
@@ -145,57 +145,46 @@ class GraphSetup:
             )
             workflow.add_edge(current_tools, current_analyst)
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
             if i < len(selected_analysts) - 1:
                 next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
                 workflow.add_edge(current_clear, next_analyst)
             else:
                 workflow.add_edge(current_clear, "Bull Researcher")
 
-        # Add remaining edges
+        # 2. Investment Debate Loop
+        workflow.add_edge("Bull Researcher", "Debate Arbiter")
+        workflow.add_edge("Bear Researcher", "Debate Arbiter")
         workflow.add_conditional_edges(
-            "Bull Researcher",
+            "Debate Arbiter",
             self.conditional_logic.should_continue_debate,
             {
                 "Bear Researcher": "Bear Researcher",
-                "Research Manager": "Research Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Bear Researcher",
-            self.conditional_logic.should_continue_debate,
-            {
                 "Bull Researcher": "Bull Researcher",
                 "Research Manager": "Research Manager",
             },
         )
+
+        # 3. CIO Plan & Trader Review
         workflow.add_edge("Research Manager", "Trader")
-        workflow.add_edge("Trader", "Risky Analyst")
+
+        # 4. Risk Debate Loop
+        workflow.add_edge("Trader", "Risky Analyst") # Start the risk debate
+        workflow.add_edge("Risky Analyst", "Risk Arbiter")
+        workflow.add_edge("Safe Analyst", "Risk Arbiter")
+        workflow.add_edge("Neutral Analyst", "Risk Arbiter") # Each analyst goes to the arbiter
+
         workflow.add_conditional_edges(
-            "Risky Analyst",
+            "Risk Arbiter",
             self.conditional_logic.should_continue_risk_analysis,
             {
+                "Risky Analyst": "Risky Analyst",
                 "Safe Analyst": "Safe Analyst",
-                "Risk Judge": "Risk Judge",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Safe Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
                 "Neutral Analyst": "Neutral Analyst",
                 "Risk Judge": "Risk Judge",
             },
         )
-        workflow.add_conditional_edges(
-            "Neutral Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Risky Analyst": "Risky Analyst",
-                "Risk Judge": "Risk Judge",
-            },
-        )
 
+        # 5. Final Decision
         workflow.add_edge("Risk Judge", END)
 
         # Compile and return

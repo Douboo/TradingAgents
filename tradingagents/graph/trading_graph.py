@@ -99,7 +99,10 @@ class TradingAgentsGraph:
         self.tool_nodes = self._create_tool_nodes()
 
         # Initialize components
-        self.conditional_logic = ConditionalLogic()
+        self.conditional_logic = ConditionalLogic(
+            max_debate_rounds=self.config.get("max_debate_rounds", 3),
+            max_risk_discuss_rounds=self.config.get("max_risk_discuss_rounds", 3),
+        )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
             self.deep_thinking_llm,
@@ -228,15 +231,24 @@ class TradingAgentsGraph:
             "final_trade_decision": final_state["final_trade_decision"],
         }
 
-        # Save to file
-        directory = Path(f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/")
-        directory.mkdir(parents=True, exist_ok=True)
+        # Save individual reports and debate histories to markdown files
+        reports_dir = Path(f"results/{self.ticker}/{trade_date}/reports")
+        reports_dir.mkdir(parents=True, exist_ok=True)
 
-        with open(
-            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
-            "w",
-        ) as f:
-            json.dump(self.log_states_dict, f, indent=4)
+        report_files = {
+            "market_report.md": final_state.get("market_report", ""),
+            "sentiment_report.md": final_state.get("sentiment_report", ""),
+            "news_report.md": final_state.get("news_report", ""),
+            "fundamentals_report.md": final_state.get("fundamentals_report", ""),
+            "investment_plan.md": final_state.get("investment_plan", ""),
+            "final_trade_decision.md": final_state.get("final_trade_decision", ""),
+            "investment_debate_history.md": final_state.get("investment_debate_state", {}).get("history", ""),
+            "risk_debate_history.md": final_state.get("risk_debate_state", {}).get("history", ""),
+        }
+
+        for filename, content in report_files.items():
+            with open(reports_dir / filename, "w", encoding="utf-8") as f:
+                f.write(content)
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""

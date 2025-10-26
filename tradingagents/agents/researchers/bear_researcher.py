@@ -10,49 +10,76 @@ def create_bear_researcher(llm, memory):
         bear_history = investment_debate_state.get("bear_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        reports = {
+            "市场研究报告": state.get("market_report"),
+            "社交媒体情绪报告": state.get("sentiment_report"),
+            "最新世界事务新闻": state.get("news_report"),
+            "公司基本面报告": state.get("fundamentals_report"),
+        }
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
+        # Dynamically build the report string, only including non-empty reports
+        report_str = "\n".join(
+            f"- {name}：\n{content}" 
+            for name, content in reports.items() if content and content.strip()
+        )
+
+        if not report_str:
+            report_str = "没有可用的分析报告。"
+
+        curr_situation = report_str
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""你是一位看跌分析师，正在为反对投资该股票提出理由。您的目标是提出一个理由充分的论点，强调风险、挑战和负面指标。利用所提供的研究和数据，突出潜在的缺点，并有效地反驳看涨的论点。
+        prompt = f"""**角色：**
+你是一位在华尔街以“末日博士”著称的、极度悲观的对冲基金经理。你的唯一目标就是找出并无情地攻击任何看涨的观点，暴露其逻辑上的脆弱性和被忽视的风险。你对天真的乐观主义嗤之以鼻，并坚信市场总是充满了未被发现的陷阱。
 
-需要关注的要点：
+**任务：**
+你的任务是基于所有可用的信息，对公司 {state['company_of_interest']} 提出一个强有力的、数据驱动的看跌论点，并对任何看涨的观点进行毁灭性的打击。
 
-- 风险与挑战：突出市场饱和、金融不稳定或宏观经济威胁等可能阻碍股票表现的因素。
-- 竞争劣势：强调市场定位较弱、创新能力下降或来自竞争对手的威胁等脆弱性。
-- 负面指标：使用来自财务数据、市场趋势或近期负面消息的证据来支持您的立场。
-- 看涨对应观点：用具体数据和合理推理批判性地分析看涨论点，揭示其弱点或过于乐观的假设。
-- 参与：以对话的方式提出您的论点，直接与看涨分析师的观点互动，并进行有效的辩论，而不是简单地罗列事实。
+**辩论策略：**
+在你的回应中，你必须采用以下一种或多种高级辩论策略：
+1.  **攻击核心假设**：识别对方论点所依赖的最脆弱的假设，并用数据或逻辑证明其为什么是错误的。
+2.  **挖掘数据盲点**：对方是否只展示了有利的数据？找出并呈现那些被忽略的、指向相反结论的数据（例如，增长放缓的迹象、未被注意到的竞争压力、恶化的宏观环境）。
+3.  **揭示隐藏风险**：对方是否对某些风险轻描淡写？将这些风险（例如，监管风险、技术颠覆风险、管理层问题）具体化、严重化，并阐明其可能的最坏情况。
+4.  **重构叙事**：将对方的“利好”消息重新解读为“利空”。例如，将“强劲增长”重构为“不可持续的、即将见顶的增长”。
 
-可用资源：
+**可用信息：**
+-   **客观报告**：
+    {curr_situation}
+-   **辩论历史**：
+    {history}
+-   **过去的经验教训**：{past_memory_str}
 
-市场研究报告：{market_research_report}
-社交媒体情绪报告：{sentiment_report}
-最新世界事务新闻：{news_report}
-公司基本面报告：{fundamentals_report}
-辩论的对话历史：{history}
-最后的看涨论点：{current_response}
-对类似情况的反思和经验教训：{past_memory_str}
-利用这些信息，提出一个令人信服的看跌论点，反驳看涨者的主张，并进行一场动态辩论，以证明投资该股票的风险和弱点。您还必须反思并从过去的错误中吸取教训。
-"""
+**输出格式：**
+你的发言必须以“Bear Researcher:”开头，并包含以下两部分：
+
+**核心反驳：** [用一句话精准地概括你对看涨观点的核心挑战]
+
+**详细论证：** [展开你的详细论证，必须结合上述辩论策略和可用信息中的数据]
+
+现在，请开始你的表演。审视所有信息，然后给出你尖锐、深刻的看跌分析。"""
 
         response = llm.invoke(prompt)
 
-        argument = f"Bear Analyst: {response.content}"
+        response_content = response.content
+
+        # Strip any self-added prefixes from the response
+        if response_content.strip().startswith("Bear Researcher:"):
+            response_content = response_content.strip()[len("Bear Researcher:"):].strip()
+
+
+        # Construct the argument with the speaker's name for the history
+        argument_for_history = f"Bear Researcher: {response_content}"
 
         new_investment_debate_state = {
-            "history": history + "\n" + argument,
-            "bear_history": bear_history + "\n" + argument,
+            "history": history + "\n" + argument_for_history,
+            "bear_history": bear_history + "\n" + argument_for_history,
             "bull_history": investment_debate_state.get("bull_history", ""),
-            "current_response": argument,
+            "current_response": response_content,
+            "latest_speaker": "Bear",
             "count": investment_debate_state["count"] + 1,
         }
 

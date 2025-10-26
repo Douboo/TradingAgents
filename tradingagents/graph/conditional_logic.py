@@ -44,24 +44,43 @@ class ConditionalLogic:
         return "Msg Clear Fundamentals"
 
     def should_continue_debate(self, state: AgentState) -> str:
-        """Determine if debate should continue."""
+        """Determine if debate should continue based on arbiter's decision or max rounds."""
+        investment_debate_state = state.get("investment_debate_state", {})
+        count = investment_debate_state.get("count", 0)
 
-        if (
-            state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
-        ):  # 3 rounds of back-and-forth between 2 agents
+        # End debate if max rounds are reached
+        if count >= self.max_debate_rounds * 2: # 2 speakers per round
             return "Research Manager"
-        if state["investment_debate_state"]["current_response"].startswith("Bull"):
+
+        # End debate if arbiter decides to
+        if state.get("debate_arbiter_decision") == "end":
+            return "Research Manager"
+        
+        # Alternate between Bull and Bear researchers
+        latest_speaker = investment_debate_state.get("latest_speaker")
+        if latest_speaker == "Bull":
             return "Bear Researcher"
-        return "Bull Researcher"
+        else:  # Bear or initial state
+            return "Bull Researcher"
 
     def should_continue_risk_analysis(self, state: AgentState) -> str:
-        """Determine if risk analysis should continue."""
-        if (
-            state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds
-        ):  # 3 rounds of back-and-forth between 3 agents
+        """Determine if risk analysis should continue based on arbiter's decision or max rounds."""
+        risk_debate_state = state.get("risk_debate_state", {})
+        count = risk_debate_state.get("count", 0)
+
+        if count >= self.max_risk_discuss_rounds * 3: # 3 speakers per round
             return "Risk Judge"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Risky"):
-            return "Safe Analyst"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Safe"):
-            return "Neutral Analyst"
-        return "Risky Analyst"
+
+        if state.get("risk_arbiter_decision") == "end":
+            return "Risk Judge"
+        else:
+            # This logic needs to be more robust to handle the debate flow
+            # For now, we just alternate, but a better approach would be a round-robin
+            # or based on who needs to respond.
+            latest_speaker = risk_debate_state.get("latest_speaker")
+            if latest_speaker == "Risky":
+                return "Safe Analyst"
+            elif latest_speaker == "Safe":
+                return "Neutral Analyst"
+            else: # Neutral or initial state
+                return "Risky Analyst"
