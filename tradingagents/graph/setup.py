@@ -25,6 +25,7 @@ class GraphSetup:
         invest_judge_memory,
         risk_manager_memory,
         conditional_logic: ConditionalLogic,
+        propagator,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -36,6 +37,7 @@ class GraphSetup:
         self.invest_judge_memory = invest_judge_memory
         self.risk_manager_memory = risk_manager_memory
         self.conditional_logic = conditional_logic
+        self.propagator = propagator
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
@@ -104,6 +106,7 @@ class GraphSetup:
         risk_manager_node = create_risk_manager(
             self.deep_thinking_llm, self.risk_manager_memory
         )
+        extract_last_investment_round_node = self.propagator.extract_last_round
 
         # Create workflow
         workflow = StateGraph(AgentState)
@@ -127,6 +130,7 @@ class GraphSetup:
         workflow.add_node("Safe Analyst", safe_analyst_node)
         workflow.add_node("Risk Arbiter", risk_arbiter_node)
         workflow.add_node("Risk Judge", risk_manager_node)
+        workflow.add_node("Extract Last Investment Round", extract_last_investment_round_node)
 
         # --- Define Edges ---
 
@@ -168,7 +172,8 @@ class GraphSetup:
         workflow.add_edge("Research Manager", "Trader")
 
         # 4. Risk Debate Loop
-        workflow.add_edge("Trader", "Risky Analyst") # Start the risk debate
+        workflow.add_edge("Trader", "Extract Last Investment Round") # Extract last round before risk debate
+        workflow.add_edge("Extract Last Investment Round", "Risky Analyst") # Start the risk debate
         workflow.add_edge("Risky Analyst", "Risk Arbiter")
         workflow.add_edge("Safe Analyst", "Risk Arbiter")
         workflow.add_edge("Neutral Analyst", "Risk Arbiter") # Each analyst goes to the arbiter

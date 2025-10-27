@@ -61,7 +61,11 @@ class TradingAgentsGraph:
             config: Configuration dictionary. If None, uses default config
         """
         self.debug = debug
-        self.config = config or DEFAULT_CONFIG
+        
+        # Load default config and update with user-provided config
+        self.config = DEFAULT_CONFIG.copy()
+        if config:
+            self.config.update(config)
 
         # Update the interface's config
         set_config(self.config)
@@ -115,6 +119,7 @@ class TradingAgentsGraph:
             max_debate_rounds=debate_rounds,
             max_risk_discuss_rounds=risk_rounds,
         )
+        self.propagator = Propagator()
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
             self.deep_thinking_llm,
@@ -125,9 +130,9 @@ class TradingAgentsGraph:
             self.invest_judge_memory,
             self.risk_manager_memory,
             self.conditional_logic,
+            self.propagator,
         )
 
-        self.propagator = Propagator()
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 
@@ -175,6 +180,7 @@ class TradingAgentsGraph:
                 ]
             ),
         }
+
 
     def propagate(self, company_name, trade_date):
         """Run the trading agents graph for a company on a specific date."""

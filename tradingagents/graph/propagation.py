@@ -48,3 +48,39 @@ class Propagator:
             "stream_mode": "values",
             "config": {"recursion_limit": self.max_recur_limit},
         }
+
+    def extract_last_round(self, state: AgentState) -> dict:
+        """Extracts the last round of the investment debate from the history."""
+        history = state.get("investment_debate_state", {}).get("history", "")
+        if not history.strip():
+            return {"last_investment_debate_round": "No debate history yet."}
+
+        rounds = history.strip().split('\n\n')
+        last_round_discussions = []
+        
+        # A round consists of a bull and a bear statement
+        bull_prefix = "Bull Analyst:"
+        bear_prefix = "Bear Analyst:"
+        
+        # Find the last bull and bear statements
+        last_bull = None
+        last_bear = None
+        
+        for i in range(len(rounds) - 1, -1, -1):
+            if rounds[i].startswith(bear_prefix) and not last_bear:
+                last_bear = rounds[i]
+            elif rounds[i].startswith(bull_prefix) and not last_bull:
+                last_bull = rounds[i]
+            
+            if last_bull and last_bear:
+                break
+        
+        if last_bull:
+            last_round_discussions.append(last_bull)
+        if last_bear:
+            last_round_discussions.append(last_bear)
+
+        if not last_round_discussions:
+            return {"last_investment_debate_round": "Could not extract the last round."}
+
+        return {"last_investment_debate_round": "\n\n".join(last_round_discussions)}

@@ -15,6 +15,7 @@ def create_risk_manager(llm, memory):
         fundamentals_report = state["fundamentals_report"]
         sentiment_report = state["sentiment_report"]
         trader_plan = state["investment_plan"]
+        last_investment_debate_round = state.get("last_investment_debate_round", "")
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
@@ -38,6 +39,8 @@ def create_risk_manager(llm, memory):
 **可用信息：**
 -   **CIO的初步投资计划**：
     {trader_plan}
+-   **多空辩论最终轮总结**:
+    {last_investment_debate_round}
 -   **风险管理委员会辩论历史**：
     {history}
 -   **原始分析报告**：

@@ -77,3 +77,4 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+    last_investment_debate_round: Annotated[str, "Last round of the investment debate history"]
