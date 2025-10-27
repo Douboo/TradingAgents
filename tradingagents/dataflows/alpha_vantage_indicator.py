@@ -24,6 +24,7 @@ def get_indicator(
     Returns:
         String containing indicator values and description
     """
+    indicator = indicator.lower()
     from datetime import datetime
     from dateutil.relativedelta import relativedelta
 
