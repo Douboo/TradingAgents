@@ -23,7 +23,11 @@ from tradingagents.agents.utils.news_data_tools import (
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add placeholder for Anthropic compatibility"""
-        messages = state["messages"]
+        # Create a copy of the state to avoid modifying the original
+        new_state = state.copy()
+        
+        # Get messages from state (use get to avoid KeyError)
+        messages = new_state.get("messages", [])
         
         # Remove all messages
         removal_operations = [RemoveMessage(id=m.id) for m in messages]
@@ -31,7 +35,10 @@ def create_msg_delete():
         # Add a minimal placeholder message
         placeholder = HumanMessage(content="Continue")
         
-        return {"messages": removal_operations + [placeholder]}
+        # Update the messages field in the state copy
+        new_state["messages"] = removal_operations + [placeholder]
+        
+        return new_state
     
     return delete_messages
 

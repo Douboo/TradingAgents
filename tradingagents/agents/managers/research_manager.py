@@ -78,6 +78,16 @@ def create_research_manager(llm, memory):
             "count": investment_debate_state["count"],
         }
 
+        print(f"--- DEBUG: Research Manager investment_debate_history length: {len(investment_debate_state.get('history', ''))}")
+        
+        # DEBUG: 检查history内容是否被修改
+        original_history = investment_debate_state.get('history', '')
+        print(f"--- DEBUG: Research Manager - Original history length: {len(original_history)}")
+        
+        # DEBUG: 检查新state中的history
+        print(f"--- DEBUG: Research Manager - New history length: {len(new_investment_debate_state['history'])}")
+        print(f"--- DEBUG: Research Manager - History content unchanged: {new_investment_debate_state['history'] == original_history}")
+        
         return {
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": response.content,

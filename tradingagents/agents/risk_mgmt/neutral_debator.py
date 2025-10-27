@@ -5,6 +5,9 @@ import json
 def create_neutral_debator(llm):
     def neutral_node(state) -> dict:
         risk_debate_state = state["risk_debate_state"]
+        count = risk_debate_state.get("count", 0)
+        print(f"--- DEBUG (Round {count}): Entering Neutral Analyst")
+        
         history = risk_debate_state.get("history", "")
         neutral_history = risk_debate_state.get("neutral_history", "")
 
@@ -13,36 +16,36 @@ def create_neutral_debator(llm):
         current_risky_response = risk_debate_state.get("current_risky_response", "")
         current_safe_response = risk_debate_state.get("current_safe_response", "")
 
-        prompt = f"""**角色：风险定价量化策略师**
+        prompt = f"""**角色：首席投资官 (CIO)**
 
-你是一位数据驱动的量化策略师，不带任何情感偏好，只相信风险与回报的数学期望。你的职责是作为激进派（追求阿尔法）和保守派（保值资本）之间的“理性粘合剂”，寻找风险调整后收益最优的执行方案。
+你的座右铭是"在风险和回报之间找到最佳平衡点。"你的职责是综合激进派和保守派的观点，制定一个平衡的、可执行的投资决策。
 
 **核心任务：**
-基于研究员制定的`初步投资计划`以及风险辩论的双方观点，提出一个数学上最优的、风险回报平衡的最终执行方案。
+基于研究员制定的`初步投资计划`，以及激进派和保守派的辩论，制定一个平衡的、可执行的投资决策。
 
 **辩论策略：**
-1.  **量化风险回报**：尝试为激进派的“潜在收益”和保守派的“潜在亏损”赋予概率和数值，并计算出不同策略的风险收益比（Risk/Reward Ratio）或夏普比率（Sharpe Ratio）。
-2.  **寻找折衷方案**：基于你的量化分析，提出一个数据驱动的折衷方案。例如，“激进派建议加仓到20%，保守派建议减仓到5%。根据我的计算，在当前波动率下，12.5%的仓位能达到最优的夏普比率。”
-3.  **设计动态调整机制**：提出一个动态的、基于市场变化的调整机制。例如，“我建议初始仓位为10%。如果股价上涨15%且核心逻辑未变，我们可以将仓位提升至15%；如果股价下跌10%，则应无条件止损。”
-4.  **充当“翻译”**：用客观、中立的语言，重新阐述激进派和保守派的观点，帮助双方找到共识的基础。
+1.  **综合观点**：识别激进派和保守派观点中的合理部分，并尝试将它们融合成一个连贯的策略。
+2.  **寻求妥协**：在激进派和保守派的分歧点上，提出折中方案。例如，如果激进派建议全仓买入，而保守派建议观望，你可以建议先建仓50%。
+3.  **强调执行细节**：关注策略的实际执行层面，包括具体的仓位管理、入场点、止损点和目标价位。
+4.  **量化决策依据**：用数据和逻辑支持你的决策，避免模糊的定性描述。
 
 **可用信息：**
 -   **初步投资计划**：
     {trader_plan}
 -   **完整的辩论历史**：
     {history}
--   **最新回合观点（你的主要分析和调和对象）**：
+-   **最新回合观点（你的主要综合对象）**：
     -   激进派最新观点：{current_risky_response}
     -   保守派最新观点：{current_safe_response}
 
 **输出格式：**
-你的发言必须以“Neutral Analyst:”开头，并严格遵循以下结构：
+你的发言必须以"Neutral Analyst:"开头，并严格遵循以下结构：
 
-**核心建议：** [用一句话概括你的、旨在平衡风险与回报的最终执行方案]
+**最终决策：** [用一句话概括你的最终投资决策，例如："建议以当前价格建仓60%，设置-8%止损和+15%止盈。"]
 
-**详细论证：** [展开你的详细论证，必须结合辩论策略，并明确地调和或仲裁“最新回合观点”]
+**详细论证：** [展开你的详细论证，必须结合辩论策略，并明确回应"最新回合观点"]
 
-请开始。审视所有信息，然后给出你客观、理性、数据驱动的最终风险管理方案。"""
+请开始。审视所有信息，然后给出你平衡风险与回报的最终投资决策。"""
 
         response = llm.invoke(prompt)
 
@@ -57,14 +60,17 @@ def create_neutral_debator(llm):
         argument_for_history = f"Neutral Analyst: {response_content}"
 
         new_risk_debate_state = risk_debate_state.copy()
-        new_risk_debate_state.update({
-            "history": history + "\n" + argument_for_history,
-            "neutral_history": neutral_history + "\n" + argument_for_history,
-            "latest_speaker": "Neutral",
-            "current_neutral_response": response_content, # Store pure content
-            "count": risk_debate_state["count"] + 1,
-        })
+        new_risk_debate_state.update(
+            {
+                "history": history + "\n" + argument_for_history,
+                "neutral_history": neutral_history + "\n" + argument_for_history,
+                "latest_speaker": "Neutral",
+                "current_neutral_response": response_content,  # Store pure content
+                "count": risk_debate_state["count"] + 1,
+            }
+        )
 
+        print(f"--- DEBUG (Round {count}): Neutral Analyst new history length: {len(new_risk_debate_state['history'])}")
         return {"risk_debate_state": new_risk_debate_state}
 
     return neutral_node

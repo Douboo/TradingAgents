@@ -12,7 +12,7 @@ def create_risk_manager(llm, memory):
         risk_debate_state = state["risk_debate_state"]
         market_research_report = state["market_report"]
         news_report = state["news_report"]
-        fundamentals_report = state["news_report"]
+        fundamentals_report = state["fundamentals_report"]
         sentiment_report = state["sentiment_report"]
         trader_plan = state["investment_plan"]
 
@@ -22,11 +22,6 @@ def create_risk_manager(llm, memory):
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
-
-        market_research_report = state["market_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
-        sentiment_report = state["sentiment_report"]
 
         prompt = f"""**角色：投资组合经理 (PM)**
 
@@ -96,6 +91,7 @@ def create_risk_manager(llm, memory):
             "count": risk_debate_state["count"],
         }
 
+        # 确保返回的状态结构正确，避免状态合并问题
         return {
             "risk_debate_state": new_risk_debate_state,
             "final_trade_decision": response.content,

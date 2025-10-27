@@ -99,9 +99,21 @@ class TradingAgentsGraph:
         self.tool_nodes = self._create_tool_nodes()
 
         # Initialize components
+        print(f"--- DEBUG: Config max_debate_rounds: {self.config.get('max_debate_rounds', 'NOT_FOUND')}")
+        print(f"--- DEBUG: Config max_risk_discuss_rounds: {self.config.get('max_risk_discuss_rounds', 'NOT_FOUND')}")
+        print(f"--- DEBUG: Config keys containing 'max': {[k for k in self.config.keys() if 'max' in k]}")
+        print(f"--- DEBUG: Config keys containing 'debate': {[k for k in self.config.keys() if 'debate' in k]}")
+        print(f"--- DEBUG: Config keys containing 'round': {[k for k in self.config.keys() if 'round' in k]}")
+        
+        # 确保配置参数正确传递
+        debate_rounds = self.config.get("max_debate_rounds", 2)
+        risk_rounds = self.config.get("max_risk_discuss_rounds", 2)
+        
+        print(f"--- DEBUG: Passing to ConditionalLogic - debate_rounds: {debate_rounds}, risk_rounds: {risk_rounds}")
+        
         self.conditional_logic = ConditionalLogic(
-            max_debate_rounds=self.config.get("max_debate_rounds", 3),
-            max_risk_discuss_rounds=self.config.get("max_risk_discuss_rounds", 3),
+            max_debate_rounds=debate_rounds,
+            max_risk_discuss_rounds=risk_rounds,
         )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
@@ -175,32 +187,96 @@ class TradingAgentsGraph:
         )
         args = self.propagator.get_graph_args()
 
+        print(f"--- DEBUG: State before entering graph: {init_agent_state.keys()}")
+        print(f"--- DEBUG: Investment debate state before graph: {init_agent_state.get('investment_debate_state', {}).keys()}")
+        print(f"--- DEBUG: Risk debate state before graph: {init_agent_state.get('risk_debate_state', {}).keys()}")
+
+        # Execute the graph
         if self.debug:
             # Debug mode with tracing
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
-                if len(chunk["messages"]) == 0:
+                if len(chunk.get("messages", [])) == 0:
                     pass
                 else:
-                    chunk["messages"][-1].pretty_print()
-                    trace.append(chunk)
+                    # chunk["messages"][-1].pretty_print()
+                    pass
+                trace.append(chunk)
 
             final_state = trace[-1]
         else:
             # Standard mode without tracing
             final_state = self.graph.invoke(init_agent_state, **args)
 
+        print(f"--- DEBUG: State after exiting graph: {final_state.keys()}")
+        print(f"--- DEBUG: Investment debate state after graph: {final_state.get('investment_debate_state', {}).keys()}")
+        print(f"--- DEBUG: Risk debate state after graph: {final_state.get('risk_debate_state', {}).keys()}")
+
+        # DEBUG: 检查辩论历史是否存在
+        investment_history = final_state.get('investment_debate_state', {}).get('history', '')
+        risk_history = final_state.get('risk_debate_state', {}).get('history', '')
+        print(f"--- DEBUG: Investment debate history exists: {bool(investment_history)}")
+        print(f"--- DEBUG: Risk debate history exists: {bool(risk_history)}")
+        print(f"--- DEBUG: Investment debate history length: {len(investment_history)}")
+        print(f"--- DEBUG: Risk debate history length: {len(risk_history)}")
+        
+        # DEBUG: 检查history内容是否为空或异常
+        print(f"--- DEBUG: Investment debate history is empty: {not investment_history.strip()}")
+        print(f"--- DEBUG: Risk debate history is empty: {not risk_history.strip()}")
+        
+        # DEBUG: 检查history内容的前200个字符
+        if investment_history:
+            print(f"--- DEBUG: Investment debate history first 200 chars: {investment_history[:200]}")
+        else:
+            print("--- DEBUG: Investment debate history is EMPTY")
+            
+        if risk_history:
+            print(f"--- DEBUG: Risk debate history first 200 chars: {risk_history[:200]}")
+        else:
+            print("--- DEBUG: Risk debate history is EMPTY")
+
         # Store current state for reflection
         self.curr_state = final_state
 
+        # DEBUG: 准备进入文件写入阶段
+        print("--- DEBUG: Preparing to enter _log_state method for file writing")
+
         # Log state
         self._log_state(trade_date, final_state)
+
+        # DEBUG: 文件写入完成
+        print("--- DEBUG: File writing completed successfully")
 
         # Return decision and processed signal
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
+        
+        # DEBUG: 进入文件写入方法
+        print("--- DEBUG: Entering _log_state method")
+        print(f"--- DEBUG: Ticker: {self.ticker}, Trade date: {trade_date}")
+        
+        # DEBUG: 检查最终状态的关键字段
+        print(f"--- DEBUG: Final state keys: {final_state.keys()}")
+        print(f"--- DEBUG: Investment debate state in final_state: {'investment_debate_state' in final_state}")
+        print(f"--- DEBUG: Risk debate state in final_state: {'risk_debate_state' in final_state}")
+        
+        if 'investment_debate_state' in final_state:
+            investment_state = final_state['investment_debate_state']
+            print(f"--- DEBUG: Investment debate state keys: {investment_state.keys()}")
+            print(f"--- DEBUG: Investment debate state has history: {'history' in investment_state}")
+            if 'history' in investment_state:
+                print(f"--- DEBUG: Investment debate history content length: {len(investment_state['history'])}")
+                print(f"--- DEBUG: Investment debate history first 200 chars: {investment_state['history'][:200]}")
+        
+        if 'risk_debate_state' in final_state:
+            risk_state = final_state['risk_debate_state']
+            print(f"--- DEBUG: Risk debate state keys: {risk_state.keys()}")
+            print(f"--- DEBUG: Risk debate state has history: {'history' in risk_state}")
+            if 'history' in risk_state:
+                print(f"--- DEBUG: Risk debate history content length: {len(risk_state['history'])}")
+        
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
@@ -231,10 +307,21 @@ class TradingAgentsGraph:
             "final_trade_decision": final_state["final_trade_decision"],
         }
 
+        # DEBUG: 准备创建报告目录
+        print("--- DEBUG: Preparing to create reports directory")
+        
         # Save individual reports and debate histories to markdown files
         reports_dir = Path(f"results/{self.ticker}/{trade_date}/reports")
+        
+        # DEBUG: 检查目录创建
+        print(f"--- DEBUG: Reports directory path: {reports_dir}")
+        print(f"--- DEBUG: Reports directory exists before creation: {reports_dir.exists()}")
+        
         reports_dir.mkdir(parents=True, exist_ok=True)
-
+        
+        print(f"--- DEBUG: Reports directory exists after creation: {reports_dir.exists()}")
+        print(f"--- DEBUG: Reports directory is directory: {reports_dir.is_dir()}")
+        
         report_files = {
             "market_report.md": final_state.get("market_report", ""),
             "sentiment_report.md": final_state.get("sentiment_report", ""),
@@ -245,10 +332,46 @@ class TradingAgentsGraph:
             "investment_debate_history.md": final_state.get("investment_debate_state", {}).get("history", ""),
             "risk_debate_history.md": final_state.get("risk_debate_state", {}).get("history", ""),
         }
-
+        
+        # DEBUG: 检查每个文件的内容
+        print("--- DEBUG: Checking content of each report file")
         for filename, content in report_files.items():
-            with open(reports_dir / filename, "w", encoding="utf-8") as f:
-                f.write(content)
+            content_exists = bool(content and content.strip())
+            print(f"--- DEBUG: {filename} - content exists: {content_exists}, length: {len(content)}")
+            if filename == "investment_debate_history.md":
+                print(f"--- DEBUG: {filename} first 200 chars: {content[:200] if content else 'EMPTY'}")
+
+        # DEBUG: 开始文件写入
+        print("--- DEBUG: Starting file writing process")
+        
+        for filename, content in report_files.items():
+            file_path = reports_dir / filename
+            print(f"--- DEBUG: Writing {filename} to {file_path}")
+            print(f"--- DEBUG: {filename} content length: {len(content)}")
+            
+            try:
+                # DEBUG: 检查文件路径
+                print(f"--- DEBUG: File path absolute: {file_path.absolute()}")
+                print(f"--- DEBUG: Parent directory exists: {file_path.parent.exists()}")
+                print(f"--- DEBUG: Parent directory is directory: {file_path.parent.is_dir()}")
+                
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                print(f"--- DEBUG: Successfully wrote {filename}")
+                
+                # DEBUG: 验证文件是否真的写入
+                written_file_exists = file_path.exists()
+                written_file_size = file_path.stat().st_size if written_file_exists else 0
+                print(f"--- DEBUG: {filename} file exists after write: {written_file_exists}")
+                print(f"--- DEBUG: {filename} file size: {written_file_size} bytes")
+                
+            except Exception as e:
+                print(f"--- DEBUG: Error writing {filename}: {e}")
+                import traceback
+                print(f"--- DEBUG: Error traceback: {traceback.format_exc()}")
+
+        # DEBUG: 文件写入完成
+        print("--- DEBUG: File writing process completed")
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""

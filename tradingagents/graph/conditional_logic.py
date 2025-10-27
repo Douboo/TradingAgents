@@ -47,31 +47,41 @@ class ConditionalLogic:
         """Determine if debate should continue based on arbiter's decision or max rounds."""
         investment_debate_state = state.get("investment_debate_state", {})
         count = investment_debate_state.get("count", 0)
-
+        
+        print(f"--- DEBUG: should_continue_debate - current count: {count}, max_rounds: {self.max_debate_rounds}")
+        
         # End debate if max rounds are reached
         if count >= self.max_debate_rounds * 2: # 2 speakers per round
+            print(f"--- DEBUG: Debate decision -> Research Manager (max rounds reached)")
             return "Research Manager"
 
         # End debate if arbiter decides to
         if state.get("debate_arbiter_decision") == "end":
+            print(f"--- DEBUG: Debate decision -> Research Manager (arbiter ended)")
             return "Research Manager"
         
         # Alternate between Bull and Bear researchers
         latest_speaker = investment_debate_state.get("latest_speaker")
         if latest_speaker == "Bull":
-            return "Bear Researcher"
+            decision = "Bear Researcher"
         else:  # Bear or initial state
-            return "Bull Researcher"
+            decision = "Bull Researcher"
+        print(f"--- DEBUG: Debate decision -> {decision}")
+        return decision
 
     def should_continue_risk_analysis(self, state: AgentState) -> str:
         """Determine if risk analysis should continue based on arbiter's decision or max rounds."""
         risk_debate_state = state.get("risk_debate_state", {})
         count = risk_debate_state.get("count", 0)
+        
+        print(f"--- DEBUG: should_continue_risk_analysis - current count: {count}, max_rounds: {self.max_risk_discuss_rounds}")
 
         if count >= self.max_risk_discuss_rounds * 3: # 3 speakers per round
+            print(f"--- DEBUG: Risk analysis decision -> Risk Judge (max rounds reached)")
             return "Risk Judge"
 
         if state.get("risk_arbiter_decision") == "end":
+            print(f"--- DEBUG: Risk analysis decision -> Risk Judge (arbiter ended)")
             return "Risk Judge"
         else:
             # This logic needs to be more robust to handle the debate flow
@@ -79,8 +89,10 @@ class ConditionalLogic:
             # or based on who needs to respond.
             latest_speaker = risk_debate_state.get("latest_speaker")
             if latest_speaker == "Risky":
-                return "Safe Analyst"
+                decision = "Safe Analyst"
             elif latest_speaker == "Safe":
-                return "Neutral Analyst"
+                decision = "Neutral Analyst"
             else: # Neutral or initial state
-                return "Risky Analyst"
+                decision = "Risky Analyst"
+            print(f"--- DEBUG: Risk analysis decision -> {decision}")
+            return decision

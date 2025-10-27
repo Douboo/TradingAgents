@@ -7,19 +7,21 @@ def create_risk_arbiter(llm, max_rounds: int = 3):
 
         # Force the first full round of debate (Risky, Safe, Neutral)
         if count < 3:
-            return {
-                "risk_arbiter_decision": "continue",
-                "risk_debate_rounds": count // 3,
-                "termination_reason": "first_round_auto_continue"
-            }
+            # Create a copy of the state and update only the necessary fields
+            new_state = state.copy()
+            new_state["risk_arbiter_decision"] = "continue"
+            new_state["risk_debate_rounds"] = count // 3
+            new_state["termination_reason"] = "first_round_auto_continue"
+            return new_state
 
         # Check if max rounds are reached
         if count >= max_rounds * 3:
-            return {
-                "risk_arbiter_decision": "end",
-                "risk_debate_rounds": count // 3,
-                "termination_reason": "max_rounds_reached"
-            }
+            # Create a copy of the state and update only the necessary fields
+            new_state = state.copy()
+            new_state["risk_arbiter_decision"] = "end"
+            new_state["risk_debate_rounds"] = count // 3
+            new_state["termination_reason"] = "max_rounds_reached"
+            return new_state
 
         prompt = f"""**角色：高效会议主持人（风险管理委员会）**
 
@@ -75,14 +77,14 @@ def create_risk_arbiter(llm, max_rounds: int = 3):
             termination_reason = "json_decode_error"
             summary = None
 
-        return_data = {
-            "risk_arbiter_decision": decision,
-            "risk_debate_rounds": count // 3,
-            "termination_reason": termination_reason,
-        }
+        # Create a copy of the state and update only the necessary fields
+        new_state = state.copy()
+        new_state["risk_arbiter_decision"] = decision
+        new_state["risk_debate_rounds"] = count // 3
+        new_state["termination_reason"] = termination_reason
         if summary:
-            return_data["risk_debate_summary"] = summary
+            new_state["risk_debate_summary"] = summary
 
-        return return_data
+        return new_state
 
     return risk_arbiter_node

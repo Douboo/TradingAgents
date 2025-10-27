@@ -73,6 +73,8 @@ class MessageBuffer:
             "investment_plan": None,
             "trader_investment_plan": None,
             "final_trade_decision": None,
+            "investment_debate_history": None,
+            "risk_debate_history": None,
         }
 
     def add_message(self, message_type, content):
@@ -114,6 +116,8 @@ class MessageBuffer:
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
+                "investment_debate_history": "Investment Debate History",
+                "risk_debate_history": "Risk Debate History",
             }
             self.current_report = (
                 f"### {section_titles[latest_section]}\n{latest_content}"
@@ -1096,6 +1100,21 @@ def run_analysis():
 
         # Display the complete final report
         display_complete_report(final_state)
+
+        # Save debate histories
+        if "investment_debate_state" in final_state:
+            investment_history = final_state["investment_debate_state"].get("history", "")
+            if investment_history:
+                message_buffer.update_report_section(
+                    "investment_debate_history", investment_history
+                )
+
+        if "risk_debate_state" in final_state:
+            risk_history = final_state["risk_debate_state"].get("history", "")
+            if risk_history:
+                message_buffer.update_report_section(
+                    "risk_debate_history", risk_history
+                )
 
         update_display(layout)
 

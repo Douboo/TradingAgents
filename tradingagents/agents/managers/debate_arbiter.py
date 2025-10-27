@@ -8,19 +8,21 @@ def create_debate_arbiter(llm, max_rounds: int = 3):
 
         # 强制执行第一轮完整的辩论（一多一空）
         if count < 2:
-            return {
-                "debate_arbiter_decision": "continue",
-                "debate_rounds": count // 2,
-                "termination_reason": "first_round_auto_continue"
-            }
+            # Create a copy of the state and update only the necessary fields
+            new_state = state.copy()
+            new_state["debate_arbiter_decision"] = "continue"
+            new_state["debate_rounds"] = count // 2
+            new_state["termination_reason"] = "first_round_auto_continue"
+            return new_state
 
         # 检查是否达到最大辩论轮数
         if count >= max_rounds * 2: # 乘以2因为一轮包含多空双方
-            return {
-                "debate_arbiter_decision": "end",
-                "debate_rounds": count // 2,
-                "termination_reason": "max_rounds_reached"
-            }
+            # Create a copy of the state and update only the necessary fields
+            new_state = state.copy()
+            new_state["debate_arbiter_decision"] = "end"
+            new_state["debate_rounds"] = count // 2
+            new_state["termination_reason"] = "max_rounds_reached"
+            return new_state
 
         prompt = f"""**角色：高效会议主持人（投资决策委员会）**
 
@@ -75,16 +77,14 @@ def create_debate_arbiter(llm, max_rounds: int = 3):
             termination_reason = "json_decode_error"
             summary = None
 
-        # 将summary（如果存在）添加到状态中，以便后续节点使用
-        # 注意：这需要下游节点（如research_manager）能够处理这个新字段
-        return_data = {
-            "debate_arbiter_decision": decision,
-            "debate_rounds": count // 2,
-            "termination_reason": termination_reason,
-        }
+        # Create a copy of the state and update only the necessary fields
+        new_state = state.copy()
+        new_state["debate_arbiter_decision"] = decision
+        new_state["debate_rounds"] = count // 2
+        new_state["termination_reason"] = termination_reason
         if summary:
-            return_data["debate_summary"] = summary
+            new_state["debate_summary"] = summary
 
-        return return_data
+        return new_state
 
     return debate_arbiter_node
