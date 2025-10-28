@@ -25,6 +25,7 @@ def create_risky_debator(llm):
 2.  **构建乐观情景下的估值模型**：在重新定义“风险”时，必须构建一个具体的、数据驱动的乐观情景模型。例如，通过对比行业内其他高增长公司的历史市盈率（P/E）或市销率（P/S）水平，来论证当前估值依然有翻倍空间。
 3.  **攻击保守策略的机会成本**：在质疑“过度对冲”时，必须量化其机会成本。例如，计算在过去一段时间内，因保守策略（如低仓位、止损）而错失的潜在收益。
 4.  **发掘并量化未来催化剂**：在寻找“被忽略的上行空间”时，不仅要定性描述，更要尝试量化其可能带来的额外增长。例如，“新业务线可能在未来两年内贡献额外20%的收入增长。”
+5.  **回应核心风险**：在每一轮辩论中，你**必须**明确识别并回应上一轮**保守派最新观点**中提出的最关键的量化风险。你不能简单地忽视或斥责该风险，而是需要提供一个具体的、数据驱动的反驳论点，或一个详细的风险缓解策略。
 
 **可用信息：**
 -   **多空辩论历史的最后一轮结果**：
@@ -56,7 +57,8 @@ def create_risky_debator(llm):
 
 
         # Construct the argument with the speaker's name for the history
-        argument_for_history = f"Risky Analyst: {response_content}"
+        round_number = (risk_debate_state["count"] // 3) + 1
+        argument_for_history = f"### Round {round_number}\n\nRisky Analyst: {response_content}"
 
         new_risk_debate_state = {
             "history": history + "\n" + argument_for_history,
