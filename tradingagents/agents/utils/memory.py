@@ -7,7 +7,11 @@ from sentence_transformers import SentenceTransformer
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
+        self.config = config  # Store config for backend routing
+        backend_url = self.config.get("backend_url", "")
+        
+        # Set embedding model based on backend
+        if backend_url == "http://localhost:11434/v1":
             self.embedding = "nomic-embed-text"
         else:
             self.embedding = "text-embedding-3-small"
@@ -16,11 +20,14 @@ class FinancialSituationMemory:
         self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
-        """Get OpenAI embedding for a text"""
-        if os.environ.get("OPENAI_API_KEY"):
+        """Get embedding for a text from the configured backend"""
+        backend_url = self.config.get("backend_url", "")
+
+        if os.environ.get("OPENAI_API_KEY") and "openai" in backend_url:
             client = OpenAI()
             response = client.embeddings.create(
-                model=self.embedding, input=text
+                model=self.embedding, 
+                input=text
             )
             return response.data[0].embedding
         else:
