@@ -29,7 +29,8 @@ if [ $? -ne 0 ]; then
 fi
 
 # --- Default Parameters ---
-TICKERS="baba,tcehy" # Default ticker
+TICKERS="qqq" # Default ticker
+# DATE="2025-10-28"
 DATE=$(date +%Y-%m-%d)
 ANALYSTS="market social news fundamentals"
 DEPTH=3
