@@ -31,7 +31,7 @@ def create_social_media_analyst(llm):
                     " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. The current company we want to analyze is {ticker}",
+                    "For your reference, the current date is {current_date}. The company to analyze has the ticker symbol '{ticker}'. You must use this exact ticker symbol for your analysis and not any other.",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
